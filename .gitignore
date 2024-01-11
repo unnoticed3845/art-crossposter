@@ -1,0 +1,10 @@
+venv
+.venv
+secret.env
+*.log
+*.pyc
+__pycache__
+
+src/parsers/data
+src/manager/data
+src/dublicate_checker/data
