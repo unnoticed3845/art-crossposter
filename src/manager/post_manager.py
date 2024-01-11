@@ -79,6 +79,8 @@ class PostManager:
         posts: List[Post] = []
         for parser in self.__parsers:
             posts.extend(parser.scrape_posts(self.__max_pages))
+        total_pics = sum(len(p.media_urls) for p in posts)
+        logger.info(f"Filtering out dublicates for {len(posts)} posts ({total_pics} images in total)")
         posts = self.filter_dublicates(posts)
         return posts
     
