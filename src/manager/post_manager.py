@@ -8,6 +8,7 @@ import logging
 import time
 import os
 
+from src.dublicate_checker import DublicateChecker
 from src.parsers import ArtworkParser, Post
 import src.tg_bot as tg_bot
 
@@ -46,6 +47,8 @@ class PostManager:
         self.post_schedule: Set[Tuple[dt.datetime, Post]] = set()
         self.__load_schedule_data()
 
+        self.dub_checker = DublicateChecker()
+
         logger.info(f"Initialization done.\n{str(self)}")
 
     def main_loop(self) -> None:
@@ -53,15 +56,8 @@ class PostManager:
             raise Exception('PostManager has no parsers added. Use PostManager.add_parser() to add parsers.')
         while self.do_run:
             logger.debug(f"Checking if something to do...")
-            self.__check_schedule()
-            if self.__is_time_for_update():
-                logger.info(f"Updating!")
-                new_posts = self.gather_new_posts()
-                logger.info("Gathered {p} posts with {i} images in total".format(
-                    p=len(new_posts),
-                    i=sum(len(p.media_urls) for p in new_posts) if new_posts else 0
-                ))
-                self.__schedule_posts(new_posts)
+            self.__check_post_schedule()
+            self.__check_update_schedule()
             time.sleep(self.__check_interval)
 
     def add_parser(self, parser: ArtworkParser) -> None:
@@ -69,13 +65,52 @@ class PostManager:
             raise ValueError('parser must be inherited from ArtworkParser')
         self.__parsers.append(parser)
 
+    def __check_update_schedule(self) -> None:
+        if self.__is_time_for_update():
+            logger.info(f"Updating!")
+            new_posts = self.gather_new_posts()
+            logger.info("Gathered {p} posts with {i} images in total".format(
+                p=len(new_posts),
+                i=sum(len(p.media_urls) for p in new_posts) if new_posts else 0
+            ))
+            self.__schedule_posts(new_posts)
+
     def gather_new_posts(self) -> List[Post]:
-        posts = []
+        posts: List[Post] = []
         for parser in self.__parsers:
             posts.extend(parser.scrape_posts(self.__max_pages))
+        posts = self.filter_dublicates(posts)
         return posts
     
-    def __check_schedule(self) -> None:
+    def filter_dublicates(self, posts: List[Post]) -> List[Post]:
+        filtered_posts: List[Post] = []
+        for post in posts:
+            dublicates = []
+            new_hashes: List[Tuple[str, str]] = []
+            # calculating hashes and checking if exists
+            for url in post.media_urls:
+                photo_hash = self.dub_checker.get_hash_from_url(url)
+                if self.dub_checker.hash_exists(photo_hash):
+                    logger.info(f"Got dublicate. Hash: {photo_hash}; Url: {url}")
+                    dublicates.append(url)
+                else:
+                    new_hashes.append((url, photo_hash))
+            # adding new hashes to the db
+            for url, photo_hash in new_hashes:
+                self.dub_checker.add_hash(photo_hash, url)
+            # appending filtered posts
+            if len(dublicates) == 0:
+                filtered_posts.append(post)
+            else:
+                filtered_posts.append(Post(
+                    media_urls=tuple(url for url in post.media_urls if not url in dublicates),
+                    author_name=post.author_name,
+                    source_link=post.source_link,
+                    tags=post.tags
+                ))
+        return filtered_posts
+
+    def __check_post_schedule(self) -> None:
         logger.debug(f"Checking post schedule...")
         cur_time = dt.datetime.now()
         posted = set()
@@ -174,7 +209,7 @@ class PostManager:
             }
         with open(self.__schedule_file, 'w', encoding='utf-8') as f:
             dump(schedule_list, f, indent=4)
-        logger.info(f"Saved {len(schedule_list)} posts to {self.__schedule_file}")
+        logger.debug(f"Saved {len(schedule_list)} posts to {self.__schedule_file}")
 
     def __repr__(self) -> str:
         scheduled_posts = [(t.strftime(self.time_format), a) for (t, a) in self.post_schedule]

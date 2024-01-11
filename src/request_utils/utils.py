@@ -1,12 +1,20 @@
 from dotenv import load_dotenv, find_dotenv
+from secrets import token_hex
 from time import time, sleep
+from typing import Iterable
+from functools import wraps
+from pathlib import Path
 import urllib.parse as url_parse
 import requests
 import logging
 import os
 import re
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("RequestUtils")
+
+################
+#     INIT     #
+################
 
 load_dotenv(find_dotenv())
 # USE_PROXY
@@ -23,19 +31,64 @@ if not REQUEST_DELAY.isdigit():
 else:
     REQUEST_DELAY = float(REQUEST_DELAY)
 logger.info(f"REQUEST_DELAY={REQUEST_DELAY}")
-# MAX_PROXY_RETRIES
-MAX_PROXY_RETRIES = os.getenv('MAX_PROXY_RETRIES', 5)
-if not MAX_PROXY_RETRIES.isdigit():
-    MAX_PROXY_RETRIES = 5
+# MAX_REQUEST_RETRIES
+MAX_REQUEST_RETRIES = os.getenv('MAX_REQUEST_RETRIES', 5)
+if not MAX_REQUEST_RETRIES.isdigit():
+    MAX_REQUEST_RETRIES = 5
 else:
-    MAX_PROXY_RETRIES = int(MAX_PROXY_RETRIES)
-logger.info(f"MAX_PROXY_RETRIES={MAX_PROXY_RETRIES}")
+    MAX_REQUEST_RETRIES = int(MAX_REQUEST_RETRIES)
+logger.info(f"MAX_REQUEST_RETRIES={MAX_REQUEST_RETRIES}")
 
 last_request = time()
 headers = {
     'User-Agent': "python-requests/2.31.0; Please contact me if you want me to ratelimit my parser; telegram: https://t.me/affenmilchmann",
     'Accept': 'text/html',
 }
+
+################
+#  DECORATORS  #
+################
+
+def delayed(f):
+    """Halts request until delay has passed globaly. NOT MULTITHREAD SAFE"""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        global last_request
+        now = time()
+        if now - last_request < REQUEST_DELAY:
+            to_sleep = REQUEST_DELAY - now + last_request
+            logger.debug(f"Sleeping for {to_sleep:.2f} sec")
+            sleep(to_sleep)
+        ret = f(*args, **kwargs)
+        last_request = time()
+        return ret
+    return wrapper
+
+def retry(times, exceptions):
+    """
+    Credit: https://stackoverflow.com/questions/50246304/using-python-decorators-to-retry-request
+    """
+    def decorator(func):
+        @wraps(func)
+        def newfn(*args, **kwargs):
+            attempt = 0
+            while attempt < times:
+                try:
+                    return func(*args, **kwargs)
+                except exceptions:
+                    logger.error(
+                        'Exception thrown when attempting to run %s, attempt '
+                        '%d of %d' % (func, attempt, times)
+                    )
+                    attempt += 1
+                    sleep(10)
+            return func(*args, **kwargs)
+        return newfn
+    return decorator
+
+#################
+#     UTILS     #
+#################
 
 def add_query_arg_to_url(url: str, args: dict) -> str:
     url_parts = url_parse.urlparse(url)
@@ -46,24 +99,29 @@ def add_query_arg_to_url(url: str, args: dict) -> str:
 def strip_args_from_url(url: str) -> str:
     return url_parse.urljoin(url, url_parse.urlparse(url).path)
 
-def get_html(url: str, __depth = 0):
-    global last_request
-    now = time()
-    if now - last_request < REQUEST_DELAY:
-        logger.debug(f"Sleeping for {REQUEST_DELAY - now + last_request:.2f} sec")
-        sleep(REQUEST_DELAY - now + last_request)
-    logger.info(f"Getting {url}. Proxy: {USE_PROXY}")
-    try:
-        if USE_PROXY:
-            r = requests.get(url, proxies={'https':USE_PROXY}, headers=headers)
-        else:
-            r = requests.get(url, headers=headers)
-    except requests.exceptions.ConnectionError as e:
-        logger.debug(f"Got ConnectionError. {MAX_PROXY_RETRIES - __depth} more tries left")
-        if __depth < MAX_PROXY_RETRIES:
-            sleep(10)
-            return get_html(url, __depth + 1)
-        raise
+################
+#   REQUESTS   #
+################
 
-    last_request = time()
+@retry(MAX_REQUEST_RETRIES, requests.exceptions.ConnectionError)
+@delayed
+def get_html(url: str) -> str:
+    logger.info(f"Getting {url}. Proxy: {USE_PROXY}")
+    if USE_PROXY:
+        r = requests.get(url, proxies={'https':USE_PROXY}, headers=headers)
+    else:
+        r = requests.get(url, headers=headers)
     return r.text
+
+@retry(MAX_REQUEST_RETRIES, requests.exceptions.ConnectionError)
+@delayed
+def download_photo(photo_url: str, save_path: Path) -> None:   
+    logger.debug(f"Dowloading {photo_url}. Proxy: {USE_PROXY}")
+    if USE_PROXY:
+        r = requests.get(photo_url, proxies={'https':USE_PROXY}, headers=headers)
+    else:
+        r = requests.get(photo_url, headers=headers)
+    if not r.ok:
+        raise ValueError(f"Cant download photo. code {r.status_code}; url {photo_url}")
+    with open(save_path, 'wb') as handler:
+        handler.write(r.content)

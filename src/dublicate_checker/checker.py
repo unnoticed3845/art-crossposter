@@ -1,42 +1,69 @@
-from PIL import Image
-from typing import List
-from pathlib import Path
 from secrets import token_hex
+from pathlib import Path
+from typing import List
+from PIL import Image
 import imagehash
+import logging
 import sqlite3
-import requests
-import os
 
-from src.request_utils import strip_args_from_url
+from src.request_utils import strip_args_from_url, download_photo
+
+logger = logging.getLogger("DublicateChecker")
 
 class DublicateChecker:
-    __data_dir = Path(__file__).parent.joinpath("data")
+    __tmp_dir = Path(__file__).parent.joinpath("tmp")
+    __init_script = Path(__file__).parent.joinpath("init.sql")
+    __db_file = Path(__file__).parent.joinpath("image_hashes.db")
 
     def __init__(self, allowed_formats: List[str] = [".jpg", ".jpeg", ".png", ".bmp"]) -> None:
-        self.con = sqlite3.connect("image_hashes.db")
+        self.con = sqlite3.connect(self.__db_file)
+        self._init_db()
         self.allowed_formats = tuple(allowed_formats)
 
-        if not self.__data_dir.is_dir():
-            self.__data_dir.mkdir()
-        """ for f in self.__data_dir.iterdir():
-            f.unlink() """
+        if not self.__tmp_dir.is_dir():
+            self.__tmp_dir.mkdir()
+        for f in self.__tmp_dir.iterdir():
+            f.unlink()
 
-    def check(self, photo_url: str) -> bool:
+    def hash_exists(self, hash_str: str) -> bool:
+        cur = self.con.cursor()
+        cur.execute("""
+            SELECT 1 FROM img_hashes WHERE img_hash = ?
+        """, (hash_str, ))
+        result = cur.fetchall()
+        logger.debug(f"Hash {hash_str} returned {result}")
+        if len(result) != 0:
+            cur.execute("""
+                UPDATE img_hashes
+                SET matches = matches + 1
+                WHERE img_hash = ?
+            """, (hash_str, ))
+            self.con.commit()
+        return len(result) != 0
+
+    def photo_exists(self, photo_url: str) -> bool:
         photo_hash = self.get_hash_from_url(photo_url)
+        return self.hash_exists(photo_hash)
 
-    def get_hash(self, photo_path: Path):
-        return imagehash.average_hash(Image.open(photo_path), hash_size=8)
-        return imagehash.crop_resistant_hash(
-            Image.open(photo_path),
-            segment_threshold=128,
-            min_segment_size=100,
-            segmentation_image_size=300
-        )
+    def add_hash(self, hash_str: str, source_url: str = None) -> None:
+        cur = self.con.cursor()
+        cur.execute("""
+            INSERT OR IGNORE INTO img_hashes(img_hash, source_link)
+            VALUES(?,?)
+        """, (hash_str, source_url))
+        self.con.commit()
 
-    def get_hash_from_url(self, photo_url: Path):
+    def add_hash_from_url(self, photo_url: str):
+        hash_str = self.get_hash_from_url(photo_url)
+        return self.add_hash(hash_str, photo_url)
+
+    def get_hash(self, photo_path: Path) -> str:
+        return str(imagehash.average_hash(Image.open(photo_path), hash_size=8))
+
+    def get_hash_from_url(self, photo_url: str) -> str:
         file_name = self._download_photo(photo_url)
         file_hash = self.get_hash(file_name)
-        #file_name.unlink(missing_ok=True)
+        file_name.unlink(missing_ok=True)
         return file_hash
 
     def _download_photo(self, photo_url: str) -> Path:
@@ -48,39 +75,13 @@ class DublicateChecker:
                 break
         if img_format is None:
             raise ValueError(f"photo_url must have allowed type. photo_url: {photo_url}")
-        
-        img_data = requests.get(photo_url).content
-        file_name = self.__data_dir.joinpath(f"{token_hex()}{img_format}")
-        with open(file_name, 'wb') as handler:
-            handler.write(img_data)
-
-        #os.system(f"convert -resize 256X256 {file_name} {file_name}")
-        #self._strip_colors(file_name)
-
+        file_name = self.__tmp_dir.joinpath(f"{token_hex()}{img_format}")
+        download_photo(photo_url, file_name)
         return file_name
 
-    def _strip_colors(self, photo_path: Path) -> Path:
-        img = Image.open(photo_path)
-        pixels = img.load()
-        def round_bin(num: int, n: int = 6) -> int:
-            bit = num & (1<<n)
-            mask = (1<<n) - 1
-            if(bit):
-                return num | mask
-            else:
-                return num & ~mask
-        for i in range(img.size[0]):
-            for j in range(img.size[1]):
-                if len(pixels[i, j]) == 4:
-                    r, g, b, a = pixels[i, j]
-                else:
-                    r, g, b = pixels[i, j]
-                r = round_bin(r)
-                g = round_bin(g)
-                b = round_bin(b)
-                if len(pixels[i, j]) == 4:
-                    pixels[i, j] = r, g, b, a
-                else: 
-                    pixels[i, j] = r, g, b
-        #img.save(photo_path.parent.joinpath("stripped_" + str(photo_path.name)))
-        img.save(photo_path)
+    def _init_db(self) -> None:
+        with open(self.__init_script, 'r', encoding='utf-8') as f:
+            raw_sql = f.read()
+        cur = self.con.cursor()
+        cur.executescript(raw_sql)
+        
