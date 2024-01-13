@@ -10,6 +10,7 @@ import os
 
 from src.dublicate_checker import DublicateChecker
 from src.parsers import ArtworkParser, Post
+from src.request_utils import strip_args_from_url
 import src.tg_bot as tg_bot
 
 logger = logging.getLogger("PostManager")
@@ -91,6 +92,9 @@ class PostManager:
             new_hashes: List[Tuple[str, str]] = []
             # calculating hashes and checking if exists
             for url in post.media_urls:
+                stripped_url = strip_args_from_url(url)
+                if not stripped_url.endswith(self.dub_checker.allowed_formats):
+                    continue
                 photo_hash = self.dub_checker.get_hash_from_url(url)
                 if self.dub_checker.hash_exists(photo_hash):
                     logger.info(f"Got dublicate. Hash: {photo_hash}; Url: {url}")
