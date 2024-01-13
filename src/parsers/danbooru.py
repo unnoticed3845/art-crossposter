@@ -1,5 +1,5 @@
-from typing import List, Union, Generator, Tuple, DefaultDict
-from collections import defaultdict
+from typing import List, Union, Generator, Tuple
+from collections import OrderedDict
 from functools import lru_cache
 from bs4 import BeautifulSoup
 from json import load, dump
@@ -37,33 +37,18 @@ class DanbooruParser(ArtworkParser):
             max_pages=max_pages,
             min_post_id=self.file_data['last_post_id']
         )
+        # we also sort posts by ids so all urls are chrolonogical
+        new_posts_urls.sort(key=self.id_from_url)
         # parsing post urls
-        sibling_posts: DefaultDict[int, List[Post]] = defaultdict(list)
-        posts: List[Post] = []
+        posts: OrderedDict[int, List[Post]] = OrderedDict()
         for post_url in new_posts_urls:
             post, parent_id = self.parse_post_page(post_url)
             if self.blacklist_tags.intersection(post.tags):
                 continue
-            if parent_id is None:
-                posts.append(post)
-            else:
-                sibling_posts[parent_id].append(post)
-        # merging sibling posts 
-        for parent_id in sibling_posts.keys():
-            # max 10 images per post. Telegram limitation
-            if len(sibling_posts[parent_id]) > 10:
-                siblings = sample(sibling_posts[parent_id], k=10)
-            else:
-                siblings = sibling_posts[parent_id]
-            
-            post = Post(
-                media_urls=tuple(p.media_urls[0] for p in siblings),
-                author_name=sibling_posts[parent_id][0].author_name,
-                source_link=sibling_posts[parent_id][0].source_link,
-                # we say that post's tags are tags that are present in ALL siblings
-                tags=tuple(set.intersection(*[set(p.tags) for p in siblings]))
-            )
-            posts.append(post)
+            if parent_id in posts: posts[parent_id].append(post)
+            else: posts[parent_id] = [post]
+        # merging sibling posts
+        merged_posts = [self.merge_posts(posts[p_id]) for p_id in posts.keys()]
         # updating max met post id
         if new_posts_urls:
             max_post_id = max(map(self.id_from_url, new_posts_urls))
@@ -71,8 +56,20 @@ class DanbooruParser(ArtworkParser):
                 self.file_data['last_post_id'] = max_post_id
                 self.__write_file_data()
         # parser interface requires the parser to be a generator
-        for post in posts:
+        for post in merged_posts:
             yield post
+
+    @staticmethod
+    def merge_posts(posts: List[Post]) -> Post:
+        # max 10 images per post. Telegram limitation
+        siblings = posts[:10]
+        return Post(
+            media_urls=tuple(p.media_urls[0] for p in siblings),
+            author_name=siblings[0].author_name,
+            source_link=siblings[0].source_link,
+            # we say that post's tags are tags that are present in ALL siblings
+            tags=tuple(set.intersection(*[set(p.tags) for p in siblings]))
+        )
 
     def gather_latest_posts_urls(
         self,
@@ -136,7 +133,7 @@ class DanbooruParser(ArtworkParser):
         ), DanbooruParser.__retrieve_parent_id(bs)
 
     @staticmethod
-    def __retrieve_parent_id(bs: BeautifulSoup) -> Union[int, None]:
+    def __retrieve_parent_id(bs: BeautifulSoup) -> int:
         body = bs.find('body')
         # if its a child post (has a parent)
         parent_id = body.get('data-post-parent-id')
@@ -144,13 +141,7 @@ class DanbooruParser(ArtworkParser):
             return parent_id
         # else if parent_id is null
         # if it has no parent and it is not a parent
-        is_parent = body.get('data-post-has-children')
-        if is_parent == 'false':
-            return None
-        # else if is_parent = 'true'
-        # if it is a parent we say that it's parent id is its own id
-        parent_id = body.get('data-post-id')
-        return parent_id
+        return body.get('data-post-id')
 
     @staticmethod
     def __retrieve_media_url(bs: BeautifulSoup) -> Union[str, None]:

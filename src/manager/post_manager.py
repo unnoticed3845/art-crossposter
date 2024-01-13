@@ -80,41 +80,7 @@ class PostManager:
         posts: List[Post] = []
         for parser in self.__parsers:
             posts.extend(parser.scrape_posts(self.__max_pages))
-        total_pics = sum(len(p.media_urls) for p in posts)
-        logger.info(f"Filtering out dublicates for {len(posts)} posts ({total_pics} images in total)")
-        posts = self.filter_dublicates(posts)
         return posts
-    
-    def filter_dublicates(self, posts: List[Post]) -> List[Post]:
-        filtered_posts: List[Post] = []
-        for post in posts:
-            dublicates = []
-            new_hashes: List[Tuple[str, str]] = []
-            # calculating hashes and checking if exists
-            for url in post.media_urls:
-                stripped_url = strip_args_from_url(url)
-                if not stripped_url.endswith(self.dub_checker.allowed_formats):
-                    continue
-                photo_hash = self.dub_checker.get_hash_from_url(url)
-                if self.dub_checker.hash_exists(photo_hash):
-                    logger.info(f"Got dublicate. Hash: {photo_hash}; Url: {url}")
-                    dublicates.append(url)
-                else:
-                    new_hashes.append((url, photo_hash))
-            # adding new hashes to the db
-            for url, photo_hash in new_hashes:
-                self.dub_checker.add_hash(photo_hash, url)
-            # appending filtered posts
-            if len(dublicates) == 0:
-                filtered_posts.append(post)
-            else:
-                filtered_posts.append(Post(
-                    media_urls=tuple(url for url in post.media_urls if not url in dublicates),
-                    author_name=post.author_name,
-                    source_link=post.source_link,
-                    tags=post.tags
-                ))
-        return filtered_posts
 
     def __check_post_schedule(self) -> None:
         logger.debug(f"Checking post schedule...")
@@ -134,22 +100,69 @@ class PostManager:
             self.post_schedule.difference_update(posted)
             self.__save_schedule_data()
     
+    @staticmethod
+    def __random_ordered_timestamps(
+        n: int,
+        delta: dt.timedelta
+    ) -> List[dt.datetime]:
+        now = dt.datetime.now()
+        def random_timestamp() -> dt.datetime:
+            return now + dt.timedelta(seconds=randint(0, delta.seconds))
+        return sorted(random_timestamp() for _ in range(n))
+
     def __schedule_posts(self, posts: List[Post]) -> None:
         if len(posts) == 0: return
         till_update = self.get_time_till_next_update()
         # I do not want to post anything past 23:59
         max_post_time = dt.datetime.combine(dt.date.today(), dt.time(23, 59))
         till_max_post_time = max_post_time - dt.datetime.now()
-        schedule_upper_limit = min(till_update, till_max_post_time)
-        for post in posts:
-            post_time = dt.datetime.now() + \
-                        dt.timedelta(seconds=randint(0, schedule_upper_limit.seconds))
+        # Generating posting time for each post and sorting it to keep original post order
+        post_timestamps = self.__random_ordered_timestamps(
+            n=len(posts),
+            delta=min(till_update, till_max_post_time)
+        )
+        new_post_count, new_img_count = 0, 0
+        for post, timestamp in zip(posts, post_timestamps):
+            post = self.filter_dublicates(post)
+            if len(post.media_urls) == 0:
+                continue
             self.post_schedule.add((
-                post_time,
+                timestamp,
                 post
             ))
-            logger.debug(f"Post {post} scheduled at {post_time}")
+            new_post_count += 1
+            new_img_count += len(post.media_urls)
+            logger.info(f"Post {post} scheduled at {timestamp.strftime(self.time_format)}")
+        logger.info(f"Scheduled {new_post_count} new posts with {new_img_count} images in total")
         self.__save_schedule_data()
+
+    def filter_dublicates(self, post: Post) -> Post:
+        dublicates = []
+        new_hashes: List[Tuple[str, str]] = []
+        # calculating hashes and checking if exists
+        for url in post.media_urls:
+            stripped_url = strip_args_from_url(url)
+            if not stripped_url.endswith(self.dub_checker.allowed_formats):
+                continue
+            photo_hash = self.dub_checker.get_hash_from_url(url)
+            if self.dub_checker.hash_exists(photo_hash):
+                logger.info(f"Got dublicate. Hash: {photo_hash}; Url: {url}")
+                dublicates.append(url)
+            else:
+                new_hashes.append((url, photo_hash))
+        # adding new hashes to the db
+        for url, photo_hash in new_hashes:
+            self.dub_checker.add_hash(photo_hash, url)
+        # appending filtered posts
+        if len(dublicates) == 0:
+            return post
+        else:
+            return Post(
+                media_urls=tuple(url for url in post.media_urls if not url in dublicates),
+                author_name=post.author_name,
+                source_link=post.source_link,
+                tags=post.tags
+            )
         
     def __is_time_for_update(self) -> bool:
         logger.debug(f"Checking if its update time...")
