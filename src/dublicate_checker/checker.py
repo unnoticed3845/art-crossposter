@@ -52,6 +52,7 @@ class DublicateChecker:
             VALUES(?,?)
         """, (hash_str, source_url))
         self.con.commit()
+        logger.info(f"Added hash {hash_str}")
 
     def add_hash_from_url(self, photo_url: str):
         hash_str = self.get_hash_from_url(photo_url)

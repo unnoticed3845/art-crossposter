@@ -149,6 +149,7 @@ class PostManager:
                 logger.info(f"Got dublicate. Hash: {photo_hash}; Url: {url}")
                 dublicates.append(url)
             else:
+                logger.info(f"Not a dublicate. Hash: {photo_hash}; Url: {url}")
                 new_hashes.append((url, photo_hash))
         # adding new hashes to the db
         for url, photo_hash in new_hashes:
