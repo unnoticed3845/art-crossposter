@@ -4,25 +4,31 @@ logging.basicConfig(format='[%(asctime)s] %(levelname)s %(name)s %(message)s',
                     level=logging.INFO)
 
 from src.manager import PostManager
-from src.parsers import DanbooruParser
+from src.parsers import DanbooruParser, BlacklistedTag as BTag
 
 logger = logging.getLogger(__name__)
 
 def main():
+    male_exc_tags = ['crossdressing', '1girl', '2girls', '3girls', '4girls']
     db = DanbooruParser(
         tags=[
             "bdsm", "shibari", "armbinder",
             "legbinder", "predicament_bondage",
         ],
         blacklist_tags=[
-            "yaoi", "2boys", "male_focus",
-            "muscular_male", "muscular",
-            "clothed_female_nude_male",
-            "cbt", "ball_busting", "crotch_kick"
+            BTag("yaoi"), 
+            BTag("pee"), BTag("peeing"), BTag("peeing_self"),
+            BTag("cbt"), BTag("ball_busting"), BTag("crotch_kick"),
+            BTag("1boy", male_exc_tags), BTag("2boys", male_exc_tags), 
+            BTag("clothed_female_nude_male", male_exc_tags),
+            BTag("male_focus", male_exc_tags),
+            BTag("muscular_male", male_exc_tags),
+            BTag("muscular", male_exc_tags),
         ],
     )
     post_manager = PostManager(
-        update_timestamps=["07:00"]
+        update_timestamps=["07:00"],
+        max_pages_to_parse=5
     )
     post_manager.add_parser(db)
     post_manager.main_loop()

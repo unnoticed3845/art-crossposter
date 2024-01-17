@@ -1,5 +1,10 @@
-from typing import List, Union, Generator, Tuple
+from typing import (
+    List, Union, Generator, 
+    Tuple, Optional, Set,
+    Iterable
+)
 from collections import OrderedDict
+from dataclasses import dataclass
 from functools import lru_cache
 from bs4 import BeautifulSoup
 from json import load, dump
@@ -14,23 +19,51 @@ from . import ArtworkParser, Post
 
 logger = logging.getLogger("DanbooruParser")
 
+class BlacklistedTag:
+    def __init__(self, tag: str, exception_tags: Iterable[str] = None) -> None:
+        self.tag = tag
+        self.exception_tags = frozenset(exception_tags) if exception_tags else frozenset()
+
+    def check(self, tags: Set[str]) -> bool:
+        if not self.tag in tags: return True
+        exception_tag_present = bool(tags.intersection(self.exception_tags))
+        return exception_tag_present
+    
+    def __eq__(self, __value: str) -> bool:
+        if isinstance(__value, str):
+            return self.tag == __value
+        return NotImplemented
+    
+    def __hash__(self) -> int:
+        return hash(self.tag)
+
+    def __repr__(self) -> str:
+        return self.tag
+    
+    def __str__(self) -> str:
+        return f"{self.tag} {list(self.exception_tags)}"
+
 class DanbooruParser(ArtworkParser):
-    __data_file = Path(__file__).parent.joinpath("data/data.json")
     url = "https://danbooru.donmai.us"
     search_url = "https://danbooru.donmai.us/posts"
+    _data_file = Path(__file__).parent.joinpath("data/data.json")
+    _default_data = {
+        'last_post_id': -1
+    }
 
     def __init__(
         self, 
         tags: Union[List[str], None] = None,
-        blacklist_tags: Union[List[str], None] = None,
+        blacklist_tags: Union[List[BlacklistedTag], None] = None,
     ) -> None:
         self.tags = tags if tags else []
         self.blacklist_tags = set(blacklist_tags) if blacklist_tags else set()
-        self.file_data = self.__load_file_data()
+        self.file_data = self._load_file_data()
     
     def scrape_posts(
         self,
-        max_pages: int = 3
+        max_pages: int = 3,
+        max_posts_total: Union[int, None] = None
     ) -> Generator[Post, None, None]:
         # gathering new post urls
         new_posts_urls = self.gather_latest_posts_urls(
@@ -39,11 +72,15 @@ class DanbooruParser(ArtworkParser):
         )
         # we also sort posts by ids so all urls are chrolonogical
         new_posts_urls.sort(key=self.id_from_url)
+        if isinstance(max_posts_total, int):
+            new_posts_urls = new_posts_urls[:max_posts_total]
+        logger.info(f"Gathered {len(new_posts_urls)} post urls")
         # parsing post urls
         posts: OrderedDict[int, List[Post]] = OrderedDict()
         for post_url in new_posts_urls:
             post, parent_id = self.parse_post_page(post_url)
-            if self.blacklist_tags.intersection(post.tags):
+            if self.is_post_blacklisted(post):
+                logger.info(f"Post is blacklisted: {post}")
                 continue
             if parent_id in posts: posts[parent_id].append(post)
             else: posts[parent_id] = [post]
@@ -54,10 +91,17 @@ class DanbooruParser(ArtworkParser):
             max_post_id = max(map(self.id_from_url, new_posts_urls))
             if max_post_id > self.file_data['last_post_id']:
                 self.file_data['last_post_id'] = max_post_id
-                self.__write_file_data()
+                self._write_file_data()
         # parser interface requires the parser to be a generator
         for post in merged_posts:
             yield post
+
+    def is_post_blacklisted(self, post: Post) -> bool:
+        tags = set(post.tags)
+        for bl_tag in self.blacklist_tags:
+            if not bl_tag.check(tags):
+                return True
+        return False
 
     @staticmethod
     def merge_posts(posts: List[Post]) -> Post:
@@ -168,8 +212,12 @@ class DanbooruParser(ArtworkParser):
     
     @staticmethod
     def __retrieve_tags(bs: BeautifulSoup) -> List[str]:
-        tags = bs.find_all('a', class_='search-tag')
-        return [ x.text for x in tags ]
+        def has_tag_name(bs_tag):
+            return bs_tag.name == 'li' and bs_tag.has_attr('data-tag-name')
+        tag_box = bs.find('section', id='tag-list')
+        tags = tag_box.find_all(has_tag_name)
+        
+        return [ x['data-tag-name'] for x in tags ]
     
     @staticmethod
     def strip_args_from_url(url: str) -> str:
@@ -197,22 +245,20 @@ class DanbooruParser(ArtworkParser):
 
     @classmethod
     def __check_data_file(cls) -> None:
-        if not cls.__data_file.is_file():
-            cls.__data_file.parent.mkdir(exist_ok=True, parents=True)
-            cls.__data_file.touch()
-            with open(cls.__data_file, 'w', encoding='utf-8') as f:
-                dump({
-                    'last_post_id': -1
-                }, f, indent=4)
+        if not cls._data_file.is_file():
+            cls._data_file.parent.mkdir(exist_ok=True, parents=True)
+            cls._data_file.touch()
+            with open(cls._data_file, 'w', encoding='utf-8') as f:
+                dump(cls._default_data, f, indent=4)
 
     @classmethod
-    def __load_file_data(cls) -> dict:
+    def _load_file_data(cls) -> dict:
         cls.__check_data_file()
-        with open(cls.__data_file, 'r', encoding='utf-8') as f:
+        with open(cls._data_file, 'r', encoding='utf-8') as f:
             data = load(f)
         return data
         
-    def __write_file_data(self) -> None:
+    def _write_file_data(self) -> None:
         self.__check_data_file()
-        with open(self.__data_file, 'w', encoding='utf-8') as f:
+        with open(self._data_file, 'w', encoding='utf-8') as f:
             dump(self.file_data, f, indent=4)

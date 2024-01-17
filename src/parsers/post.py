@@ -20,5 +20,5 @@ class Post:
         return f"{artist}\n" + \
                f"{source}"
 
-    def __repr__(self) -> str:
-        return f"({self.author_name}) {len(self.media_urls)} media files"
+    def __str__(self) -> str:
+        return f"[by {self.author_name} media: {self.media_urls}; tags {self.tags}"

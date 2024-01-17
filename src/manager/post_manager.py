@@ -232,10 +232,10 @@ class PostManager:
         logger.debug(f"Saved {len(schedule_list)} posts to {self.__schedule_file}")
 
     def __repr__(self) -> str:
-        scheduled_posts = [(t.strftime(self.time_format), a) for (t, a) in self.post_schedule]
+        scheduled_posts = [(t.strftime(self.time_format), str(p)) for (t, p) in self.post_schedule]
         scheduled_posts.sort(key=lambda x: x[0])
         update_time = [x.strftime(self.time_format) for x in self.__update_time]
         return "Update time:\n" + \
                pformat(update_time) + '\n' + \
                "Scheduled posts:\n" + \
-               pformat(scheduled_posts)
+               '\n'.join([str(x) for x in scheduled_posts])
