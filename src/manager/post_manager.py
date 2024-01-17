@@ -234,8 +234,9 @@ class PostManager:
     def __repr__(self) -> str:
         scheduled_posts = [(t.strftime(self.time_format), str(p)) for (t, p) in self.post_schedule]
         scheduled_posts.sort(key=lambda x: x[0])
+        scheduled_posts = [f"({t}, {p})" for (t, p) in scheduled_posts]
         update_time = [x.strftime(self.time_format) for x in self.__update_time]
         return "Update time:\n" + \
                pformat(update_time) + '\n' + \
                "Scheduled posts:\n" + \
-               '\n'.join([str(x) for x in scheduled_posts])
+               '\n'.join([x for x in scheduled_posts])
