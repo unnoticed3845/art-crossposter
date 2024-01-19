@@ -18,7 +18,7 @@ log_file = "log/postmanager.log"
 os.makedirs(os.path.dirname(log_file), exist_ok=True)
 fh = logging.FileHandler(log_file)
 fh.setLevel(logging.DEBUG)
-ff = logging.Formatter('[%(asctime)s] %(levelname)s %(message)s')
+ff = logging.Formatter('[%(asctime)s] %(levelname)s %(message)s', '%Y-%m-%d %H:%M:%S')
 fh.setFormatter(ff)
 logger.addHandler(fh)
 
