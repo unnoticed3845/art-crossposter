@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 def main():
     male_exc_tags = ['crossdressing', '1girl', '2girls', '3girls', '4girls']
-    db = DanbooruParser(
+    dp = DanbooruParser(
         tags=[
             "bdsm", "shibari", "armbinder",
             "legbinder", "predicament_bondage",
@@ -30,7 +30,7 @@ def main():
         update_timestamps=["07:00"],
         max_pages_to_parse=5
     )
-    post_manager.add_parser(db)
+    post_manager.add_parser(dp)
     post_manager.main_loop()
 
 if __name__ == '__main__':
