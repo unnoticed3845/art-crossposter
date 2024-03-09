@@ -45,7 +45,7 @@ In [.env](./.env) file you can configure 3 variables:
     **Note!** Please, be kind to platform servers and do not set low REQUEST_DELAY values. No need to spam with requests when parsing occurs happens couple times a day
 - MAX_REQUEST_RETRIES - max request retries before throwing an exception and stopping the Crossposter
 
-# Creating new parsers
+## Creating new parsers
 To create a new parser: 
 1. Inherit it from [`ArtworkParser`](./src/parsers/parser.py) (place your parser in src/parsers)
 2. Implement `scrape_posts` generator method there with matching return typing
