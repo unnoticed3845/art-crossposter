@@ -16,6 +16,11 @@ class DublicateChecker:
     __db_file = Path(__file__).parent.joinpath("image_hashes.db")
 
     def __init__(self, allowed_formats: List[str] = [".jpg", ".jpeg", ".png", ".bmp"]) -> None:
+        """This class so
+
+        Args:
+            allowed_formats (List[str], optional): _description_. Defaults to [".jpg", ".jpeg", ".png", ".bmp"].
+        """
         self.con = sqlite3.connect(self.__db_file)
         self._init_db()
         self.allowed_formats = tuple(allowed_formats)
