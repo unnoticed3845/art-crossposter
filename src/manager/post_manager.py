@@ -9,7 +9,7 @@ import time
 import os
 
 from src.dublicate_checker import DublicateChecker
-from src.parsers import ArtworkParser, Post
+from src.parse import BaseParser, Post
 from src.request_utils import strip_args_from_url
 import src.tg_bot as tg_bot
 
@@ -44,7 +44,7 @@ class PostManager:
         self.__check_interval = check_interval
         self.__max_pages = max_pages_to_parse
 
-        self.__parsers: List[ArtworkParser] = []
+        self.__parsers: List[BaseParser] = []
         self.post_schedule: Set[Tuple[dt.datetime, Post]] = set()
         self.__load_schedule_data()
 
@@ -61,9 +61,9 @@ class PostManager:
             self.__check_update_schedule()
             time.sleep(self.__check_interval)
 
-    def add_parser(self, parser: ArtworkParser) -> None:
-        if not isinstance(parser, ArtworkParser):
-            raise ValueError('parser must be inherited from ArtworkParser')
+    def add_parser(self, parser: BaseParser) -> None:
+        if not isinstance(parser, BaseParser):
+            raise ValueError('parser must be inherited from BaseParser')
         self.__parsers.append(parser)
 
     def __check_update_schedule(self) -> None:

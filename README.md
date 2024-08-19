@@ -16,7 +16,7 @@ This crossposter parses art from various platforms (rn only from danbooru imageb
 
 4. (optional) run parser tests:
 
-    `python3 run_tests.py`
+    `python3 -m unittest discover tests`
 
 5. Run:
 
@@ -47,6 +47,6 @@ In [.env](./.env) file you can configure 3 variables:
 
 ## Creating new parsers
 To create a new parser: 
-1. Inherit it from [`ArtworkParser`](./src/parsers/parser.py) (place your parser in src/parsers)
+1. Inherit it from [`BaseParser`](./src/parsers/parser.py) (place your parser in src/parsers)
 2. Implement `scrape_posts` generator method there with matching return typing
 3. In [main.py](./main.py) create an object of your parser class and add it to post manager with `post_manager.add_parser(parser_obj)`

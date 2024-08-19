@@ -1,28 +1,41 @@
 from typing import (
     List, Union, Generator, 
-    Tuple, Optional, Set,
-    Iterable
+    Tuple, Set, Iterable
 )
 from collections import OrderedDict
-from dataclasses import dataclass
 from functools import lru_cache
 from bs4 import BeautifulSoup
 from json import load, dump
-from random import sample
 from pathlib import Path
 import urllib.parse as url_parse
 import logging
 import re
 
 from src.request_utils import get_html
-from . import ArtworkParser, Post
+from . import Post, BaseParser
 
 logger = logging.getLogger("DanbooruParser")
 
 class BlacklistedTag:
     def __init__(self, tag: str, exception_tags: Iterable[str] = None) -> None:
+        if not isinstance(tag, str):
+            raise ValueError(f"tag must be str, got {tag}({type(tag)})")
         self.tag = tag
         self.exception_tags = frozenset(exception_tags) if exception_tags else frozenset()
+
+    @classmethod
+    def fromstr(cls, tag: str):
+        return cls(tag=tag)
+    @classmethod
+    def fromjsonlist(cls, json_list: list):
+        return cls(tag=json_list[0], exception_tags=json_list[1])
+    @classmethod
+    def fromauto(cls, tag: list | str):
+        if isinstance(tag, str):
+            return cls.fromstr(tag)
+        if isinstance(tag, list):
+            return cls.fromjsonlist(tag)
+        return NotImplemented
 
     def check(self, tags: Set[str]) -> bool:
         if not self.tag in tags: return True
@@ -33,32 +46,58 @@ class BlacklistedTag:
         if isinstance(__value, str):
             return self.tag == __value
         return NotImplemented
-    
     def __hash__(self) -> int:
         return hash(self.tag)
-
     def __repr__(self) -> str:
-        return self.tag
-    
+        return str(self)
     def __str__(self) -> str:
-        return f"{self.tag} {list(self.exception_tags)}"
+        return f"{self.tag}{list(self.exception_tags)}"
 
-class DanbooruParser(ArtworkParser):
+class DanbooruParser(BaseParser):
     url = "https://danbooru.donmai.us"
     search_url = "https://danbooru.donmai.us/posts"
-    _data_file = Path(__file__).parent.joinpath("data/data.json")
     _default_data = {
         'last_post_id': -1
     }
+    _exc_tags = ['crossdressing', '1girl', '2girls', '3girls', '4girls']
+    _default_config = {
+        'tags': [
+            "bdsm", "shibari", "armbinder",
+            "legbinder", "predicament_bondage",
+        ],
+        'blacklisted_tags': [
+            # <blacklisted_tag>
+            # OR
+            # [<blacklisted_tag>, [<tags_exceptions_for_this_tag>]]
+            "pee", "peeing", "peeing_self",
+            "cbt", "ball_busting", "crotch_kick",
+            ["1boy", _exc_tags],
+            ["2boys", _exc_tags],
+            ["clothed_female_nude_male", _exc_tags],
+            ["male_focus", _exc_tags],
+            ["muscular_male", _exc_tags],
+            ["muscular", _exc_tags],
+        ]
+    }
 
     def __init__(
-        self, 
-        tags: Union[List[str], None] = None,
-        blacklist_tags: Union[List[BlacklistedTag], None] = None,
+        self,
+        config_file: Path = Path("danbooru_cfg.json"),
+        data_file: Path = Path("danbooru_data.json")
     ) -> None:
-        self.tags = tags if tags else []
-        self.blacklist_tags = set(blacklist_tags) if blacklist_tags else set()
-        self.file_data = self._load_file_data()
+        super().__init__(config_file = config_file,
+                         data_file = data_file,
+                         default_config = self._default_config,
+                         default_data = self._default_data)
+        if self.config['tags']:
+            self.tags = self.config['tags']
+        else:
+            raise ValueError(f"config contained no tags: {self.config}")
+        self.blacklisted_tags = [BlacklistedTag.fromauto(tag) 
+                                 for tag in self.config['blacklisted_tags']]
+        logger.debug(self.tags)
+        logger.debug(self.blacklisted_tags)
+        logger.debug(self.file_data)
     
     def scrape_posts(
         self,
@@ -91,14 +130,14 @@ class DanbooruParser(ArtworkParser):
             max_post_id = max(map(self.id_from_url, new_posts_urls))
             if max_post_id > self.file_data['last_post_id']:
                 self.file_data['last_post_id'] = max_post_id
-                self._write_file_data()
+                self.save_data()
         # parser interface requires the parser to be a generator
         for post in merged_posts:
             yield post
 
     def is_post_blacklisted(self, post: Post) -> bool:
         tags = set(post.tags)
-        for bl_tag in self.blacklist_tags:
+        for bl_tag in self.blacklisted_tags:
             if not bl_tag.check(tags):
                 return True
         return False
@@ -242,23 +281,3 @@ class DanbooruParser(ArtworkParser):
         query = url_parse.parse_qs(url_parts.query, keep_blank_values=True)
         query.update(args)
         return url_parts._replace(query=url_parse.urlencode(query, doseq=True)).geturl()
-
-    @classmethod
-    def __check_data_file(cls) -> None:
-        if not cls._data_file.is_file():
-            cls._data_file.parent.mkdir(exist_ok=True, parents=True)
-            cls._data_file.touch()
-            with open(cls._data_file, 'w', encoding='utf-8') as f:
-                dump(cls._default_data, f, indent=4)
-
-    @classmethod
-    def _load_file_data(cls) -> dict:
-        cls.__check_data_file()
-        with open(cls._data_file, 'r', encoding='utf-8') as f:
-            data = load(f)
-        return data
-        
-    def _write_file_data(self) -> None:
-        self.__check_data_file()
-        with open(self._data_file, 'w', encoding='utf-8') as f:
-            dump(self.file_data, f, indent=4)

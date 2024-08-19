@@ -1,3 +1,4 @@
 from .post import Post
-from .parser import ArtworkParser
+from .base_parser import BaseParser
+
 from .danbooru import DanbooruParser, BlacklistedTag

@@ -5,7 +5,8 @@ secret.env
 *.pyc
 __pycache__
 
-src/parsers/data
+src/parse/data
+src/parse/config
 src/manager/data
 src/dublicate_checker/data
 
