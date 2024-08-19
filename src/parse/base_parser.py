@@ -1,8 +1,11 @@
 from typing import Generator
 from pathlib import Path
+import logging
 from json import load, dump
 
 from . import Post
+
+logger = logging.getLogger("BaseParser")
 
 class BaseParser:
     _config_dir = Path(__file__).parent.joinpath("config")
@@ -54,14 +57,17 @@ class BaseParser:
             dict | list: loaded json data
         """
         # checking if file exists
+        class_name = type(cls).__name__
         if not file.is_file():
-            print(f"{file} doesn't exist. Loading default data")
+            logger.info(f"{class_name} file missing: {file}")
             if default_data is None:
                 raise FileNotFoundError(f"File {file} does not exist.")
             cls._write_json(file, default_data)
+            logger.info(f"{class_name} created default: {file}")
 
         with open(file, 'r', encoding='utf-8') as f:
             json_data = load(f)
+        logger.info(f"{class_name} file loaded: {file}")
         return json_data
     
     @staticmethod
