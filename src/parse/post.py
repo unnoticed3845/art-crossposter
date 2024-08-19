@@ -21,4 +21,4 @@ class Post:
                f"{source}"
 
     def __str__(self) -> str:
-        return f"[by {self.author_name} media: {self.media_urls}; tags {self.tags}"
+        return f"[{self.author_name}: {self.media_urls}]"
