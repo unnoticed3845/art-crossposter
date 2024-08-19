@@ -1,7 +1,7 @@
 from typing import Tuple, Optional
 from dataclasses import dataclass
 
-md_special_char = ['_', ')', '(', '-', '.', '=']
+md_special_char = ['_', ')', '(', '-', '.', '=', '!']
 
 @dataclass(frozen=True)
 class Post:
