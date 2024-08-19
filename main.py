@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def main():
     dp = DanbooruParser()
     post_manager = PostManager(
-        update_timestamps=["16:23"],
+        update_timestamps=["07:00"],
         max_pages_to_parse=1
     )
     post_manager.add_parser(dp)
