@@ -40,8 +40,7 @@ class BaseParser:
             default_data=default_data
         )
 
-    @classmethod
-    def load_json(cls,
+    def load_json(self,
                   file: Path,
                   default_data: dict = None) -> dict | list:
         """Loads json file.
@@ -57,12 +56,12 @@ class BaseParser:
             dict | list: loaded json data
         """
         # checking if file exists
-        class_name = type(cls).__name__
+        class_name = type(self).__name__
         if not file.is_file():
             logger.info(f"{class_name} file missing: {file}")
             if default_data is None:
                 raise FileNotFoundError(f"File {file} does not exist.")
-            cls._write_json(file, default_data)
+            self._write_json(file, default_data)
             logger.info(f"{class_name} created default: {file}")
 
         with open(file, 'r', encoding='utf-8') as f:
