@@ -83,6 +83,8 @@ class DanbooruParser(BaseParser):
         if 'blacklisted_tags' in self.config and self.config['blacklisted_tags']:
             self.blacklisted_tags = [BlacklistedTag.fromauto(tag) 
                                     for tag in self.config['blacklisted_tags']]
+        else:
+            self.blacklisted_tags = []
         logger.debug(self.tags)
         logger.debug(self.blacklisted_tags)
         logger.debug(self.file_data)

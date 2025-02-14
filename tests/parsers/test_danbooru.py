@@ -18,6 +18,7 @@ class TestDanbooruParser(unittest.TestCase):
     def test_scrape_one_page(self) -> None:
         target_tag = 'signalis'
         self.create_dummy_config({
+            'max_pages': 1,
             'tags': [target_tag],
             'blacklisted_tags': []
         })
@@ -26,7 +27,7 @@ class TestDanbooruParser(unittest.TestCase):
         real_data = dp.file_data.copy()
         dp.file_data = dp._default_data.copy()
         # scraping
-        posts = list(dp.scrape_posts(max_pages=1))
+        posts = list(dp.scrape_posts())
         # restoring real data
         dp.file_data = real_data
         dp.save_data()
@@ -40,6 +41,7 @@ class TestDanbooruParser(unittest.TestCase):
     def test_scrape_one_page_max_three_posts(self) -> None:
         target_tag = '1girl'
         self.create_dummy_config({
+            'max_pages': 1,
             'tags': [target_tag],
             'blacklisted_tags': []
         })
@@ -48,7 +50,7 @@ class TestDanbooruParser(unittest.TestCase):
         real_data = dp.file_data.copy()
         dp.file_data = dp._default_data.copy()
         # scraping
-        posts = list(dp.scrape_posts(max_pages=1, max_posts_total=3))
+        posts = list(dp.scrape_posts(max_posts_total=3))
         # restoring real data
         dp.file_data = real_data
         dp.save_data()
@@ -62,6 +64,7 @@ class TestDanbooruParser(unittest.TestCase):
     def test_scrape_blacklisted(self) -> None:
         target_tag = 'signalis'
         self.create_dummy_config({
+            'max_pages': 1,
             'tags': [target_tag],
             'blacklisted_tags': [target_tag]
         })
@@ -70,7 +73,7 @@ class TestDanbooruParser(unittest.TestCase):
         real_data = dp.file_data.copy()
         dp.file_data = dp._default_data.copy()
         # scraping
-        posts = list(dp.scrape_posts(max_pages=1))
+        posts = list(dp.scrape_posts())
         # restoring real data
         dp.file_data = real_data
         dp.save_data()
@@ -82,6 +85,7 @@ class TestDanbooruParser(unittest.TestCase):
         target_tag = 'signalis'
         exception = 'elster_(signalis)'
         self.create_dummy_config({
+            'max_pages': 1,
             'tags': [f'{target_tag} {exception}'],
             'blacklisted_tags': [[target_tag, [exception]]]
         })
@@ -90,7 +94,7 @@ class TestDanbooruParser(unittest.TestCase):
         real_data = dp.file_data.copy()
         dp.file_data = dp._default_data.copy()
         # scraping
-        posts = list(dp.scrape_posts(max_pages=1, max_posts_total=5))
+        posts = list(dp.scrape_posts(max_posts_total=5))
         # restoring real data
         dp.file_data = real_data
         dp.save_data()
