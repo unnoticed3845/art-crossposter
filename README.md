@@ -28,12 +28,14 @@ Parsers are configurable by tags that they parse. Existing Danbooru parser provi
 
 More platform parsers are planned to be added like Pixiv, X(Twitter), Gelbooru, etc.
 
-Right now Danbooru parser configuration is being done while initializing its class object (in [main.py](./main.py) in `DanbooruParser` object creation).
+To configure danbooru parser edit [config/danbooru_conf.json](./config/danbooru_conf.json) file.
 
 ### Parse schedule
 `PostManager` class object orchestrates the whole crossposter. It calls parsers when needed, schedules posts, calls tg_bot module to post posts, calls dublicate_checker to check if image has already been posted before.
 
-- Daily parse time is configured in `update_timestamps` argument of `PostManager`'s constructor. It is a `List[str]` with 24h formatted timestamps. Example: `['07:00', '23:30']`, in this case postmanager will call every parser twice a day at 7:00 and 23:30. 
+To configure danbooru parser edit [config/scheduler_conf.json](./config/scheduler_conf.json) file.
+
+- Daily parse time is configured in `update_timestamps`. It is a `List[str]` with 24h formatted timestamps. Example: `['07:00', '23:30']`, in this case postmanager will call every parser twice a day at 7:00 and 23:30. 
 - **First note!** Parsers are not multithreaded yet (they will be once we make at least two parsers).
 - **Second note!** Please do not parse too frequently, be polite to the platform servers :), 1-2 times per day is more than enough imho.
 
