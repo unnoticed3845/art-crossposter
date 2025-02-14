@@ -59,54 +59,40 @@ class DanbooruParser(BaseParser):
     _default_data = {
         'last_post_id': -1
     }
-    _exc_tags = ['crossdressing', '1girl', '2girls', '3girls', '4girls']
-    _default_config = {
-        'tags': [
-            "bdsm", "shibari", "armbinder",
-            "legbinder", "predicament_bondage",
-        ],
-        'blacklisted_tags': [
-            # <blacklisted_tag>
-            # OR
-            # [<blacklisted_tag>, [<tags_exceptions_for_this_tag>]]
-            "pee", "peeing", "peeing_self",
-            "cbt", "ball_busting", "crotch_kick",
-            ["1boy", _exc_tags],
-            ["2boys", _exc_tags],
-            ["clothed_female_nude_male", _exc_tags],
-            ["male_focus", _exc_tags],
-            ["muscular_male", _exc_tags],
-            ["muscular", _exc_tags],
-        ]
-    }
 
     def __init__(
         self,
-        config_file: Path = Path("danbooru_cfg.json"),
+        config_file: Path = Path("danbooru_conf.json"),
         data_file: Path = Path("danbooru_data.json")
     ) -> None:
         super().__init__(config_file = config_file,
                          data_file = data_file,
-                         default_config = self._default_config,
                          default_data = self._default_data)
+        # max_pages
+        self.max_pages = self.config['max_pages']
+        if not isinstance(self.max_pages, int) or self.max_pages < 1:
+            raise ValueError(f"Invalid max_pages value")
+        # tags
+        if not 'tags' in self.config:
+            raise ValueError(f"Config must contain 'tags' array: {self.config_file_path}")
         if self.config['tags']:
             self.tags = self.config['tags']
         else:
-            raise ValueError(f"config contained no tags: {self.config}")
-        self.blacklisted_tags = [BlacklistedTag.fromauto(tag) 
-                                 for tag in self.config['blacklisted_tags']]
+            raise ValueError(f"Config contained no tags: {self.config_file_path}")
+        # blacklisted_tags
+        if 'blacklisted_tags' in self.config and self.config['blacklisted_tags']:
+            self.blacklisted_tags = [BlacklistedTag.fromauto(tag) 
+                                    for tag in self.config['blacklisted_tags']]
         logger.debug(self.tags)
         logger.debug(self.blacklisted_tags)
         logger.debug(self.file_data)
+        logger.info('Initialization done')
     
     def scrape_posts(
-        self,
-        max_pages: int = 3,
-        max_posts_total: Union[int, None] = None
+        self, max_posts_total: Union[int, None] = None
     ) -> Generator[Post, None, None]:
         # gathering new post urls
         new_posts_urls = self.gather_latest_posts_urls(
-            max_pages=max_pages,
             min_post_id=self.file_data['last_post_id']
         )
         # we also sort posts by ids so all urls are chrolonogical
@@ -155,15 +141,12 @@ class DanbooruParser(BaseParser):
         )
 
     def gather_latest_posts_urls(
-        self,
-        max_pages: int = 3,
-        min_post_id: int = -1
+        self, min_post_id: int = -1
     ) -> List[str]:
         new_posts_urls = []
         for tag in self.tags:
             posts_urls = self.gather_latest_posts_urls_by_tags(
                 tags=tag,
-                max_page=max_pages,
                 min_post_id=min_post_id
             )
             for url in posts_urls:
@@ -171,14 +154,11 @@ class DanbooruParser(BaseParser):
                     new_posts_urls.append(url)
         return new_posts_urls
 
-    @staticmethod
     def gather_latest_posts_urls_by_tags(
-        tags: str,
-        max_page: int = 3,
-        min_post_id: int = -1
+        self, tags: str, min_post_id: int = -1
     ) -> List[str]:
         new_posts_urls = []
-        for page in range(1, max_page + 1):
+        for page in range(1, self.max_pages + 1):
             url = DanbooruParser.add_query_arg_to_url(
                 DanbooruParser.search_url, 
                 {"page": page, "tags": tags}

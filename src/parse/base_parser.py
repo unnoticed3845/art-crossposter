@@ -8,13 +8,12 @@ from . import Post
 logger = logging.getLogger("BaseParser")
 
 class BaseParser:
-    _config_dir = Path(__file__).parent.joinpath("config")
-    _data_dir = Path(__file__).parent.joinpath("data")
+    _config_dir = Path('config')
+    _data_dir = Path("data")
 
     def __init__(self, 
                  config_file: Path | str = None, 
                  data_file: Path | str = None,
-                 default_config: dict = None,
                  default_data: dict = None) -> None:
         """Loads parser's data and configuration.
 
@@ -27,12 +26,16 @@ class BaseParser:
             default_config (dict, optional): default config to write to file if not exists. Defaults to None.
             default_data (dict, optional): default data to write to file if not exists. Defaults to None.
         """
+        if not self._config_dir.is_dir():
+            raise FileNotFoundError(f'Config directory does not exist: {self._config_dir}')
+        if not self._data_dir.is_dir():
+            self._data_dir.mkdir()
+            
         self.config_file_path = self._config_dir.joinpath(config_file)
         self.data_file_path = self._data_dir.joinpath(data_file)
 
         self.config = self.load_json(
-            file=self.config_file_path,
-            default_data=default_config
+            file=self.config_file_path
         )
 
         self.file_data = self.load_json(
@@ -58,9 +61,9 @@ class BaseParser:
         # checking if file exists
         class_name = type(self).__name__
         if not file.is_file():
-            logger.info(f"{class_name} file missing: {file}")
             if default_data is None:
-                raise FileNotFoundError(f"File {file} does not exist.")
+                raise FileNotFoundError(f"{class_name} file does not exist: {file}")
+            logger.info(f"{class_name} file missing: {file}")
             self._write_json(file, default_data)
             logger.info(f"{class_name} created default: {file}")
 

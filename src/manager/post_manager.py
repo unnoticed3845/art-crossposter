@@ -5,6 +5,7 @@ from pprint import pformat
 from pathlib import Path
 import datetime as dt
 import logging
+import json
 import time
 import os
 
@@ -23,17 +24,17 @@ fh.setFormatter(ff)
 logger.addHandler(fh)
 
 class PostManager:
-    __schedule_file = Path(__file__).parent.joinpath('data/schedule.json')
+    __schedule_file = Path('data/schedule.json')
     time_format = '%Y-%m-%d %H:%M'
 
     def __init__(
-        self,
-        update_timestamps: List[str] = ["07:00"],
-        check_interval: int = 60,
-        max_pages_to_parse: int = 3
+        self, config_file: Path | str = Path("config/scheduler_conf.json")
     ) -> None:
+        with open(config_file, 'r', encoding = 'utf-8') as f:
+            self.config = load(f)
         # initializing
-        self.__update_time = [ self.form_today_timestamp(t) for t in update_timestamps ]
+        self.__update_time = [self.form_today_timestamp(t) 
+                              for t in self.config['update_time']]
         # skipping past update times so they are only triggered tomorrow
         cur_time = dt.datetime.now()
         for i in range(len(self.__update_time)):
@@ -41,8 +42,7 @@ class PostManager:
                 self.__update_time[i] += dt.timedelta(days=1)
 
         self.do_run = True
-        self.__check_interval = check_interval
-        self.__max_pages = max_pages_to_parse
+        self.__check_interval = self.config['check_interval']
 
         self.__parsers: List[BaseParser] = []
         self.post_schedule: Set[Tuple[dt.datetime, Post]] = set()
@@ -79,7 +79,7 @@ class PostManager:
     def gather_new_posts(self) -> List[Post]:
         posts: List[Post] = []
         for parser in self.__parsers:
-            posts.extend(parser.scrape_posts(self.__max_pages))
+            posts.extend(parser.scrape_posts())
         return posts
 
     def __check_post_schedule(self) -> None:
