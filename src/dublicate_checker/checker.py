@@ -2,34 +2,33 @@ from secrets import token_hex
 from pathlib import Path
 from typing import List
 from PIL import Image
+from json import load
 import imagehash
 import logging
 import sqlite3
 
 from src.request_utils import strip_args_from_url, download_photo
+from src.config import data_dir, config_dir
 
 parent_dir = Path(__file__).parent
+
 logger = logging.getLogger("DublicateChecker")
 
 class DublicateChecker:
-    def __init__(self, 
-                 allowed_formats: List[str] = [".jpg", ".jpeg", ".png", ".bmp"],
-                 tmp_dir: Path = parent_dir.joinpath("tmp"),
-                 init_script: Path = parent_dir.joinpath("init.sql"),
-                 db_file: Path = parent_dir.joinpath("image_hashes.db")) -> None:
-        """This class so
+    def __init__(self, config_file: str = 'dublicate_checker_conf.json') -> None:
+        with open(config_dir.joinpath(config_file), 'r', encoding = 'utf-8') as f:
+            self.config = load(f)
+        
+        self.allowed_formats = tuple(self.config['allowed_formats'])
 
-        Args:
-            allowed_formats (List[str], optional): _description_. Defaults to [".jpg", ".jpeg", ".png", ".bmp"].
-        """
-        self.__tmp_dir = tmp_dir
-        self.__init_script = init_script
-        self.__db_file = db_file
+        self.__db_file = data_dir.joinpath('image_hashes.db')
+        self.__init_script = parent_dir.joinpath('init.sql')
+        self.__tmp_dir = parent_dir.joinpath('tmp')
 
         self.con = sqlite3.connect(self.__db_file)
         self._init_db()
-        self.allowed_formats = tuple(allowed_formats)
-
+        logger.info(f'Connected to {self.__db_file}')
+        
         if not self.__tmp_dir.is_dir():
             self.__tmp_dir.mkdir()
         for f in self.__tmp_dir.iterdir():

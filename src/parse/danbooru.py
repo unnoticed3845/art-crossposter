@@ -62,8 +62,8 @@ class DanbooruParser(BaseParser):
 
     def __init__(
         self,
-        config_file: Path = Path("danbooru_conf.json"),
-        data_file: Path = Path("danbooru_data.json")
+        config_file: str = "danbooru_conf.json",
+        data_file: str = "danbooru_data.json"
     ) -> None:
         super().__init__(config_file = config_file,
                          data_file = data_file,

@@ -12,11 +12,11 @@ import os
 from src.dublicate_checker import DublicateChecker
 from src.parse import BaseParser, Post
 from src.request_utils import strip_args_from_url
+from src.config import log_dir, config_dir, data_dir
 import src.tg_bot as tg_bot
 
 logger = logging.getLogger("PostManager")
-log_file = "log/postmanager.log"
-os.makedirs(os.path.dirname(log_file), exist_ok=True)
+log_file = log_dir.joinpath("postmanager.log")
 fh = logging.FileHandler(log_file)
 fh.setLevel(logging.DEBUG)
 ff = logging.Formatter('[%(asctime)s] %(levelname)s %(message)s', '%Y-%m-%d %H:%M:%S')
@@ -24,13 +24,14 @@ fh.setFormatter(ff)
 logger.addHandler(fh)
 
 class PostManager:
-    __schedule_file = Path('data/schedule.json')
     time_format = '%Y-%m-%d %H:%M'
 
     def __init__(
-        self, config_file: Path | str = Path("config/scheduler_conf.json")
+        self, 
+        config_file: str = 'scheduler_conf.json',
+        schedule_file: str = 'schedule.json'
     ) -> None:
-        with open(config_file, 'r', encoding = 'utf-8') as f:
+        with open(config_dir.joinpath(config_file), 'r', encoding = 'utf-8') as f:
             self.config = load(f)
         # initializing
         self.__update_time = [self.form_today_timestamp(t) 
@@ -46,6 +47,7 @@ class PostManager:
 
         self.__parsers: List[BaseParser] = []
         self.post_schedule: Set[Tuple[dt.datetime, Post]] = set()
+        self.__schedule_file = data_dir.joinpath(schedule_file)
         self.__load_schedule_data()
 
         self.dub_checker = DublicateChecker()
@@ -213,7 +215,6 @@ class PostManager:
         
     def __save_schedule_data(self) -> None:
         if not self.__schedule_file.is_file():
-            self.__schedule_file.parent.mkdir(exist_ok=True, parents=True)
             self.__schedule_file.touch()
         schedule_list = list(self.post_schedule)
         for i in range(len(schedule_list)):

@@ -6,7 +6,4 @@ secret.env
 __pycache__
 
 data
-src/manager/data
-src/dublicate_checker/data
-
-*.db
+log

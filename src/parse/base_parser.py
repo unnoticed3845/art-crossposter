@@ -4,35 +4,24 @@ import logging
 from json import load, dump
 
 from . import Post
+from src.config import config_dir, data_dir
 
 logger = logging.getLogger("BaseParser")
 
 class BaseParser:
-    _config_dir = Path('config')
-    _data_dir = Path("data")
-
     def __init__(self, 
-                 config_file: Path | str = None, 
-                 data_file: Path | str = None,
+                 config_file: str, 
+                 data_file: str,
                  default_data: dict = None) -> None:
         """Loads parser's data and configuration.
 
-        - `self.file_data` will contain `data_file`'s contents
-        - `self.config` will contain `config_file`'s contents
-
         Args:
-            config_file (Path | str): file name relative to BaseParser._config_dir
-            data_file (Path | str): file name relative to BaseParser._data_dir
-            default_config (dict, optional): default config to write to file if not exists. Defaults to None.
+            config_file (str): file name relative to config_dir
+            data_file (str): file name relative to data_dir
             default_data (dict, optional): default data to write to file if not exists. Defaults to None.
-        """
-        if not self._config_dir.is_dir():
-            raise FileNotFoundError(f'Config directory does not exist: {self._config_dir}')
-        if not self._data_dir.is_dir():
-            self._data_dir.mkdir()
-            
-        self.config_file_path = self._config_dir.joinpath(config_file)
-        self.data_file_path = self._data_dir.joinpath(data_file)
+        """            
+        self.config_file_path = config_dir.joinpath(config_file)
+        self.data_file_path = data_dir.joinpath(data_file)
 
         self.config = self.load_json(
             file=self.config_file_path
