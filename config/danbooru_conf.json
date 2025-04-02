@@ -1,0 +1,13 @@
+{
+    "_comment_max_pages": "Max pages to parse at once",
+    "max_pages": 1,
+    "_comment_tags": "Tags to be parsed from danbooru imageboard. If an image has AT LEAST ONE of them, it will be posted",
+    "tags": [
+        "scenery", "signalis"
+    ],
+    "_comment_blacklisted_tags": "Tags to be ignored. Tag can be a string or a list with format [tag, [exc1, exc2, ...]], where `tag` is a tag string, `exc` are tags exceptions wich allow image with `tag` to be posted",
+    "blacklisted_tags": [
+        ["1girl", ["signalis"]],
+        ["2girl", ["signalis"]]
+    ]
+}

@@ -1,0 +1,9 @@
+venv
+.venv
+secret.env
+*.log
+*.pyc
+__pycache__
+
+data
+log

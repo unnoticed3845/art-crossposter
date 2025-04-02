@@ -1,0 +1,6 @@
+{
+    "_comment_update_time": "Local time when all of the parsers will be triggered to parse their sites and schedule new posts",
+    "update_time": ["09:00", "18:00"],
+    "_comment_check_interval": "Delay between schedule checks in seconds",
+    "check_interval": 60
+}
