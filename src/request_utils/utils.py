@@ -18,21 +18,21 @@ logger = logging.getLogger("RequestUtils")
 
 load_dotenv(find_dotenv())
 # USE_PROXY
-USE_PROXY = os.getenv('USE_PROXY')
+USE_PROXY = os.getenv('USE_PROXY', '')
 if not re.match(r'(\d{1,3}\.){3}\d{1,3}:\d{1,6}', USE_PROXY):
     logger.info(f"USE_PROXY={USE_PROXY} which is an invalid proxy. No proxy will be used.")
     USE_PROXY = None
 else:
     logger.info(f"{USE_PROXY} proxy will be used")
 # REQUEST_DELAY
-REQUEST_DELAY = os.getenv('REQUEST_DELAY', 1)
+REQUEST_DELAY = os.getenv('REQUEST_DELAY', '1')
 if not REQUEST_DELAY.isdigit():
     REQUEST_DELAY = 1
 else:
     REQUEST_DELAY = float(REQUEST_DELAY)
 logger.info(f"REQUEST_DELAY={REQUEST_DELAY}")
 # MAX_REQUEST_RETRIES
-MAX_REQUEST_RETRIES = os.getenv('MAX_REQUEST_RETRIES', 5)
+MAX_REQUEST_RETRIES = os.getenv('MAX_REQUEST_RETRIES', '5')
 if not MAX_REQUEST_RETRIES.isdigit():
     MAX_REQUEST_RETRIES = 5
 else:

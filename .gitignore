@@ -1,6 +1,6 @@
 venv
 .venv
-secret.env
+secret*
 *.log
 *.pyc
 __pycache__

@@ -1,0 +1,11 @@
+services:
+  bot:
+    image: artcrossposter
+    container_name: artcrossposter
+    build: .
+    network_mode: bridge
+    volumes:
+      - ./log:/opt/artcrossposter/log:rw
+      - ./data:/opt/artcrossposter/data:rw
+      - ./config:/opt/artcrossposter/config:rw
+      - ./secret.env:/opt/artcrossposter/secret.env:ro
