@@ -1,4 +1,5 @@
 FROM python:3.11-alpine
+LABEL org.opencontainers.image.source=https://github.com/unnoticed3845/art-crossposter
 
 WORKDIR /opt/artcrossposter
 

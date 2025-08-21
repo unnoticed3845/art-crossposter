@@ -1,6 +1,6 @@
 services:
   bot:
-    image: artcrossposter
+    image: ghcr.io/unnoticed3845/crossposter:latest
     container_name: artcrossposter
     build: .
     network_mode: bridge
