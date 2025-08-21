@@ -1,7 +1,6 @@
 services:
   bot:
     image: ghcr.io/unnoticed3845/crossposter:latest
-    container_name: artcrossposter
     build: .
     network_mode: bridge
     volumes:
@@ -9,3 +8,4 @@ services:
       - ./data:/opt/artcrossposter/data:rw
       - ./config:/opt/artcrossposter/config:rw
       - ./secret.env:/opt/artcrossposter/secret.env:ro
+
