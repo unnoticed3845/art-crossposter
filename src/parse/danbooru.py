@@ -121,7 +121,9 @@ class DanbooruParser(BaseParser):
                 self.save_data()
         # parser interface requires the parser to be a generator
         for post in merged_posts:
-            yield post
+            # if at least one valid url
+            if len([url for url in post.media_urls if url]):
+                yield post
 
     def is_post_blacklisted(self, post: Post) -> bool:
         tags = set(post.tags)
