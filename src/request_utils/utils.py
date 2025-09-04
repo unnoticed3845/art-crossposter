@@ -97,7 +97,7 @@ def add_query_arg_to_url(url: str, args: dict) -> str:
     return url_parts._replace(query=url_parse.urlencode(query, doseq=True)).geturl()
 
 def strip_args_from_url(url: str) -> str:
-    return url_parse.urljoin(url, url_parse.urlparse(url).path)
+    return str(url_parse.urljoin(url, url_parse.urlparse(url).path))
 
 ################
 #   REQUESTS   #
