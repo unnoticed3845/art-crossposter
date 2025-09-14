@@ -102,12 +102,12 @@ class PostManager:
                 except pytgbot.exceptions.TgApiServerException:
                     logger.warning(f'Failed to post {post}')
                     failed.add((post_time, post))
-        logger.info(f'Posted {len(posted)} posts')
         if len(failed) > 0:
             logger.warning(f'Failed to post {len(failed)} posts. Rescheduling them')
             self.post_schedule.difference_update(failed)
             self.__schedule_posts([x[1] for x in failed])
         if len(posted) > 0:
+            logger.info(f'Posted {len(posted)} posts')
             self.post_schedule.difference_update(posted)
         if len(failed) > 0 or len(posted) > 0:
             self.__save_schedule_data()
