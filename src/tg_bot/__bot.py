@@ -64,6 +64,7 @@ def send_single_media(media_url: str, caption: str, max_retries: int = 5) -> Non
         except (pytgbot.exceptions.TgApiServerException, ConnectionError) as e:
             if i + 1 == max_retries:
                 logger.error(f"send_single_media Exception: {e}\nmedia_url:{media_url}")
+                raise
             else:
                 sleep(2)
 
@@ -109,6 +110,7 @@ def send_several_media(media: List[str], caption: str, max_retries: int = 5) -> 
         except (pytgbot.exceptions.TgApiServerException, ConnectionError) as e:
             if i + 1 == max_retries:
                 logger.error(f"send_several_media Exception: {e}\nmedia:{media}")
+                raise
             else:
                 sleep(2)
 

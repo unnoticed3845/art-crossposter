@@ -5,6 +5,7 @@ from pprint import pformat
 from pathlib import Path
 import datetime as dt
 import logging
+import pytgbot
 import json
 import time
 import os
@@ -87,19 +88,28 @@ class PostManager:
     def __check_post_schedule(self) -> None:
         logger.debug(f"Checking post schedule...")
         cur_time = dt.datetime.now()
-        posted = set()
+        failed: Set[Tuple[dt.datetime, Post]] = set()
+        posted: Set[Tuple[dt.datetime, Post]] = set()
         for post_time, post in self.post_schedule:
             if post_time < cur_time:
                 logger.info(f"Posting {post}")
-                tg_bot.send_media(
-                    media = post.media_urls,
-                    caption = post.form_caption()
-                )
-                posted.add((post_time, post))
-        if len(posted) == 0:
-            logger.debug(f"No posts to be posted.")
-        else:
+                try:
+                    tg_bot.send_media(
+                        media = post.media_urls,
+                        caption = post.form_caption()
+                    )
+                    posted.add((post_time, post))
+                except pytgbot.exceptions.TgApiServerException:
+                    logger.warning(f'Failed to post {post}')
+                    failed.add((post_time, post))
+        logger.info(f'Posted {len(posted)} posts')
+        if len(failed) > 0:
+            logger.warning(f'Failed to post {len(failed)} posts. Rescheduling them')
+            self.post_schedule.difference_update(failed)
+            self.__schedule_posts([x[1] for x in failed])
+        if len(posted) > 0:
             self.post_schedule.difference_update(posted)
+        if len(failed) > 0 or len(posted) > 0:
             self.__save_schedule_data()
     
     @staticmethod
