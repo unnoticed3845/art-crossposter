@@ -1,9 +1,10 @@
-venv
-.venv
+venv/
+.venv/
 secret*
 *.log
 *.pyc
 __pycache__
 
-data
-log
+data/
+log/
+config/

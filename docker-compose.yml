@@ -8,4 +8,3 @@ services:
       - ./data:/opt/artcrossposter/data:rw
       - ./config:/opt/artcrossposter/config:rw
       - ./secret.env:/opt/artcrossposter/secret.env:ro
-

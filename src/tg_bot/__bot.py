@@ -24,7 +24,8 @@ __bot = pytgbot.Bot(os.getenv('TG_TOKEN'))
 __channel_id = os.getenv('CHANNEL_ID')
 
 photo_formats = (".jpg", ".jpeg", ".png")
-video_formats = (".mp4", ".mkv", ".gif")
+#video_formats = (".mp4", ".mkv", ".gif")
+video_formats = (".gif",)
 
 def __send_photo(photo_url: str, caption: str) -> None:
     __bot.send_photo(
@@ -63,7 +64,7 @@ def send_single_media(media_url: str, caption: str, max_retries: int = 5) -> Non
             break
         except (pytgbot.exceptions.TgApiServerException, ConnectionError) as e:
             if i + 1 == max_retries:
-                logger.error(f"send_single_media Exception: {e}\nmedia_url:{media_url}")
+                logger.error(f"send_single_media Handler: {handler.__name__}\nException: {e}\nmedia_url:{media_url}")
                 raise
             else:
                 sleep(2)
